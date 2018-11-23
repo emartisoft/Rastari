@@ -16,9 +16,10 @@ rpi-update
 apt-get autoclean -y
 apt-get autoremove -y
 SetAutoLogin
-apt-get install build-essential libsdl1.2-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev  -y
+apt-get install build-essential libsdl1.2-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev git-core -y
 echo -e  "${YELLOW}Checking for Rastari updates...${NOCOLOR}"
 cd /tmp
 git clone https://github.com/emartisoft/Rastari
 cd Rastari/
+chmod +x ./install.sh
 ./install.sh
