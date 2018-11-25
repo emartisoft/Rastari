@@ -48,8 +48,12 @@ else
 	chmod a+x ./AudioOutput
 	chmod a+x ./Configuration
 	chmod a+x ./ResizeSD
+	./updateConfig.sh
 	cd ~
 	echo -e  "${BLUE}--== Rastari ${ver} is compiled & installed  ==--${NOCOLOR}"
+	echo -e  "${YELLOW}Rebooting...${NOCOLOR}"
+	sleep 1
+	reboot
 fi
 
 
