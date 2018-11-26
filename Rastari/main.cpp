@@ -83,6 +83,8 @@ static SDL_Surface *autostartConfigText = NULL;
 static SDL_Surface *returnButtonSheet = NULL;
 static SDL_Surface *checkButtonSheet = NULL;
 static SDL_Surface *uncheckButtonSheet = NULL;
+static SDL_Surface *muteonSheet = NULL;
+static SDL_Surface *muteoffSheet = NULL;
 
 static TTF_Font *infoS = NULL;
 static TTF_Font *infoC = NULL;
@@ -108,7 +110,8 @@ int substring(char *source, int from, int n, char *target);
 void GetAutostartConfigName();
 
 static Mix_Music *music = NULL;
-bool mute = false;
+bool mute;
+int mutecountdown = 0;
 static Mix_Chunk *click = NULL;
 static Mix_Chunk *speech = NULL;
 
@@ -140,7 +143,7 @@ void set_verclips();
 bool autostartShowing = false;
 char autostartConfigName[256];
 bool statusAutostart;
-bool GetstatusAutostart();
+bool GetStatusProperty(const char *prop);
 
 char nmtd[24]="Ne Mutlu T\x00fcrk\x00fcm Diyene!";
 int nmtdCountDown=0;
@@ -770,7 +773,8 @@ int main (int argc, char* argv[])
     set_verclips();
 
     GetAutostartConfigName();
-    statusAutostart=GetstatusAutostart();
+    statusAutostart=GetStatusProperty(".autostart");
+    mute=GetStatusProperty(".mute");
 
     while(!quit)
     {
@@ -1016,8 +1020,19 @@ int main (int argc, char* argv[])
                         break;
 
                         case SDLK_m:
-
-                            mute = !mute;
+                        	if( Mix_PlayChannel( -1, click, 0 ) != -1 )
+                            {
+                            	mute = !mute;
+                            	mutecountdown = 100;
+                            	if(mute)
+                            	{
+                            		systemf("echo autostart=true > .mute");
+                            	}
+                            	else
+                            	{
+                            		systemf("rm -f .mute");
+                            	}
+                        	}
 
                         break;
 
@@ -1142,6 +1157,19 @@ int main (int argc, char* argv[])
             //-----------------------------------------------------------------------------
             apply_surface(GetXCenteredSurface(rastariLogo),64,rastariLogo,screen);
             apply_surface(GetXCenteredSurface(rastariText),64+rastariLogo->h,rastariText,screen);
+
+            if(mutecountdown>0)
+	        {
+	        	if(mute)
+	        	{
+	        		apply_surface(SCREENWIDTH-128, 64, muteonSheet, screen, 192);
+	        	}
+	        	else
+	        	{
+	        		apply_surface(SCREENWIDTH-128, 64, muteoffSheet, screen, 192);
+	        	}
+	        	mutecountdown--;
+	        }
 
 
             if (!autostartShowing)
@@ -1328,6 +1356,9 @@ bool load_files()
     rebootMenuSheet = load_image(SHAREPATH("mReboot.png"), 0x00, 0x00, 0x00);
     selectwifiMenuSheet = load_image(SHAREPATH("mSelectwifi.png"), 0x00, 0x00, 0x00);
     autostartMenuSheet = load_image(SHAREPATH("mAutostart.png"), 0x00, 0x00, 0x00);
+    muteonSheet = load_image(SHAREPATH("muteon.png"), 0xcc, 0xcc, 0xcc);
+    muteoffSheet = load_image(SHAREPATH("muteoff.png"), 0xcc, 0xcc, 0xcc);
+
 
     mouseCable = load_image(SHAREPATH("mousecable.png"),  0xbf, 0xbf, 0xbf);
 
@@ -1345,7 +1376,7 @@ bool load_files()
         (separate2MenuSheet == NULL) || (separate3MenuSheet == NULL) || (rebootMenuSheet == NULL) || (selectwifiMenuSheet == NULL) || (audioMenuSheet == NULL) ||
         (autostartMenuSheet == NULL) || (flagFull == NULL) || (rastariLogo == NULL) || (aboutSheet == NULL) || (configInfoPanel == NULL) || (background == NULL) ||
         (click == NULL) || (speech == NULL) || ( font == NULL ) || ( infoC == NULL) || (infoS == NULL) || (menuFont == NULL) || (verFull == NULL) || (autostartConfigPanel == NULL) ||
-        (checkButtonSheet == NULL) || (uncheckButtonSheet == NULL) || (returnButtonSheet == NULL)
+        (checkButtonSheet == NULL) || (uncheckButtonSheet == NULL) || (returnButtonSheet == NULL) || (muteonSheet == NULL) || (muteoffSheet == NULL)
     )
     {
         printf("Failed while loading files\n");
@@ -1405,6 +1436,8 @@ void clean_up()
     SDL_FreeSurface(returnButtonSheet);
     SDL_FreeSurface(checkButtonSheet);
     SDL_FreeSurface(uncheckButtonSheet);
+    SDL_FreeSurface(muteonSheet);
+    SDL_FreeSurface(muteoffSheet);
 
     SDL_FreeCursor(cursor);
 
@@ -1479,11 +1512,14 @@ void GetAutostartConfigName()
 
 }
 
-// if .autostart file exists, return true
-bool GetstatusAutostart()
+// if file exists, return true
+bool GetStatusProperty(const char *prop)
 {
     FILE *f;
-    f = fopen(SHAREPATH(".autostart"), "r");
+    char filePath[50];
+    strcpy(filePath, "/usr/local/rastari/");
+    strcat(filePath, prop);
+    f = fopen(filePath, "r");
     if (f==NULL)
     {
         return false;
