@@ -490,14 +490,21 @@ bool createIniFile()
     */
 
     // list of files
-    DIR *d;
-    struct dirent *dir;
-    d = opendir(hatariConfigPath);
-    if (d)
+    struct dirent** dirlist;
+    int dircnt = scandir(hatariConfigPath, &dirlist, NULL, alphasort);
+    bool error = (dircnt < 0);
+    if (error)
     {
-        while ((dir = readdir(d)) != NULL)
+        printf("Can't read directory %s ...\n", hatariConfigPath);
+    }
+    else
+    {
+        for (int i = 0; i < dircnt; ++i)
         {
-            if (strstr(dir->d_name, ".cfg") != NULL)
+            struct dirent* dir = dirlist[i];
+            const char* extension = strstr(dir->d_name, ".cfg");
+            // check for file extension and make sure that is not only part of the filename
+            if (extension != NULL && strlen(extension) == 4)
             {
                 // [MenuX]
                 fputs("[Menu", ini);
@@ -505,8 +512,9 @@ bool createIniFile()
                 fputs(strMenuCount, ini);
                 // Title = ...
                 fputs("]\nTitle = ", ini);
-                strncpy(title, dir->d_name, strlen(dir->d_name)-4);
-                title[strlen(dir->d_name)-4] = 0;
+                int title_len = extension - dir->d_name;
+                strncpy(title, dir->d_name, title_len);
+                title[title_len] = 0;
                 fputs(title, ini);
 
                 //read values from hatari cfg file
@@ -519,31 +527,36 @@ bool createIniFile()
                 Configuration cfg;
 
                 if (ini_parse(cfgFileName, hatariHandler, &cfg) < 0) {
-                    printf("Can't load cfg file...\n");
-                    return false;
+                    // don't leave function here as we still have to free memory
+                    // and close the file
+                    printf("Can't load cfg file %s ...", cfgFileName);
+                    error = true;
+                }
+                else
+                {
+                    fputs("\nModel = ", ini);
+                    fputs(cfg.model, ini);
+                    fputs("\nCpu = ", ini);
+                    fputs(cfg.cpu, ini);
+                    fputs("\nSpeed = ", ini);
+                    fputs(cfg.speed, ini);
+                    fputs("\nRam = ", ini);
+                    fputs(cfg.ram, ini);
+                    fputs("\nOs = ", ini);
+                    fputs(cfg.os, ini);
                 }
 
-                fputs("\nModel = ", ini);
-                fputs(cfg.model, ini);
-                fputs("\nCpu = ", ini);
-                fputs(cfg.cpu, ini);
-                fputs("\nSpeed = ", ini);
-                fputs(cfg.speed, ini);
-                fputs("\nRam = ", ini);
-                fputs(cfg.ram, ini);
-                fputs("\nOs = ", ini);
-                fputs(cfg.os, ini);
                 fputs("\n", ini);
-
                 menuCount++;
             }
+            free(dir);
         }
-        closedir(d);
+        free(dirlist);
     }
 
     fclose(ini);
 
-    return true;
+    return !error;
 }
 
 bool loadMenu()
